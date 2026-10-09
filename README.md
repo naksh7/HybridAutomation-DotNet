@@ -684,4 +684,4 @@ Select-Object ProcessName, Id, MainWindowTitle, MainWindowHandle
 
 For packaged Windows applications, the visible window may belong to `ApplicationFrameHost` and the package process name may not be suitable for `appTopLevelWindow`. In that case, use the package application ID with WinAppDriver's `app` capability instead of attaching by process name.
 ---
-*This README provides comprehensive guidance for using the HybridAutomation framework. For specific implementation details, refer to the GoldenTest01 example and the extensive inline documentation throughout the codebase.*
+*This README provides comprehensive guidance for using the HybridAutomation framework. For specific implementation details, refer the extensive inline documentation throughout the codebase.*
