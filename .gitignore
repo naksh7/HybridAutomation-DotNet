@@ -1,0 +1,45 @@
+# Build outputs
+bin/
+obj/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# NuGet
+*.nupkg
+*.snupkg
+packages/
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# Test results
+TestResults/
+*.trx
+*.coverage
+*.coveragexml
+
+# Logs and reports
+logs/
+*.log
+ExtentReports/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# JetBrains Rider
+.idea/
+*.sln.iml
+
+# Playwright
+playwright-report/
+test-results/
+
+# Environment / secrets
+appsettings.local.json
+*.env

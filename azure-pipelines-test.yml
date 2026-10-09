@@ -1,0 +1,115 @@
+name: HybridAutomation_Test_$(Build.SourceBranchName)_$(Date:ddMMyyyy).$(Rev:r)
+
+trigger: none
+
+resources:
+  pipelines:
+    - pipeline: buildPipeline          # alias used below
+      source: 'HybridAutomation-Build'   # <-- exact ADO pipeline NAME of the Build pipeline
+      trigger: none                    # set to 'true' if you want Test to auto-run when Build succeeds
+
+parameters:
+  - name: poolName
+    displayName: 'Agent Pool Name'
+    type: string
+    default: 'Azure Pipelines'
+    values:
+      - 'Azure Pipelines'
+      - 'PuneTeam'
+  # For the 'Azure Pipelines' pool this is the hosted VM image; for self-hosted pools it is the Agent.Name demand.
+  - name: agentName
+    displayName: 'Agent Name / VM Image'
+    type: string
+    default: 'windows-latest'   
+  - name: environment
+    displayName: 'Web(Only)'
+    type: string
+    default: 'DEV'
+    values:
+      - DEV
+      - UAT
+      - PROD 
+  - name: filterType
+    displayName: 'Run by'
+    type: string
+    default: 'Name'
+    values:
+      - Name
+      - TestCategory  
+  - name: testNames
+    displayName: 'Test Name or Category Name'
+    type: string
+    default: 'CheckTestBuild'
+  - name: testPlanId
+    displayName: 'Azure Test Plan ID (optional)'
+    type: string
+    default: '0'
+  - name: testSuiteId
+    displayName: 'Azure Test Suite ID (optional)'
+    type: string
+    default: '0'
+  - name: testConfigurationId
+    displayName: 'Azure Test Configuration ID (optional)'
+    type: string
+    default: '0'
+
+variables:
+  - name: testNames
+    value: '${{ parameters.testNames }}'
+  - name: azureArtefactsRoot
+    value: '$(Build.ArtifactStagingDirectory)\TestArtefacts'
+
+stages:
+- stage: Test
+  jobs:
+  - job: Job
+    ${{ if eq(parameters.poolName, 'Azure Pipelines') }}:
+      pool:
+        vmImage: '${{ parameters.agentName }}'
+    ${{ else }}:
+      pool:
+        name: '${{ parameters.poolName }}'
+        demands:
+        - Agent.Name -equals ${{ parameters.agentName }}
+        - msbuild
+        - visualstudio
+    steps:
+    - download: buildPipeline
+      artifact: 'drop'
+
+    - ${{ if and(ne(parameters.testPlanId, '0'), ne(parameters.testSuiteId, '0'), ne(parameters.testConfigurationId, '0')) }}:
+      - task: VSTest@3
+        displayName: 'Run tests and update Azure Test Plan'
+        inputs:
+          testSelector: 'testPlan'
+          testPlan: '${{ parameters.testPlanId }}'
+          testSuite: '${{ parameters.testSuiteId }}'
+          testConfiguration: '${{ parameters.testConfigurationId }}'
+          searchFolder: '$(Pipeline.Workspace)\buildPipeline\drop'
+          testRunTitle: 'Automated test run - $(Build.BuildNumber)'
+          publishRunAttachments: true
+        env:
+          AZURE_ARTEFACTS: '$(azureArtefactsRoot)'
+          TEST_ENVIRONMENT: '${{ parameters.environment }}'
+
+    - ${{ else }}:
+      - task: VSTest@3
+        displayName: 'Run selected test assemblies'
+        inputs:
+          testSelector: 'testAssemblies'
+          testAssemblyVer2: |
+            $(Pipeline.Workspace)\buildPipeline\drop\**\*test.dll
+            $(Pipeline.Workspace)\buildPipeline\drop\**\*tests.dll
+          testFiltercriteria: '${{ parameters.filterType }}=$(testNames)'
+          publishRunAttachments: true
+        env:
+          AZURE_ARTEFACTS: '$(azureArtefactsRoot)'
+          TEST_ENVIRONMENT: '${{ parameters.environment }}'
+
+    - task: PublishPipelineArtifact@1
+      displayName: 'Publish test artefacts (Extent report, traces, screenshots)'
+      condition: always()
+      inputs:
+        targetPath: '$(azureArtefactsRoot)'
+        artifact: 'TestReport_$(Build.BuildId)'
+        publishLocation: 'pipeline'
